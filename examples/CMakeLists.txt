@@ -1,0 +1,17 @@
+function(tm_add_example name)
+    add_executable(${name} ${name}.cpp)
+    target_link_libraries(${name} PRIVATE task_manager::task_manager)
+    target_compile_features(${name} PRIVATE cxx_std_23)
+    if(MSVC)
+        target_compile_options(${name} PRIVATE
+            /W4 /WX /permissive- /Zc:__cplusplus)
+        target_compile_definitions(${name} PRIVATE
+            WIN32_LEAN_AND_MEAN
+            NOMINMAX
+            _CRT_SECURE_NO_WARNINGS)
+    endif()
+endfunction()
+
+tm_add_example(list_current_process)
+tm_add_example(open_by_name)
+tm_add_example(scoped_suspend)

@@ -77,7 +77,7 @@ if(TASK_MANAGER_BUILD_TESTS)
 endif()
 
 if(TASK_MANAGER_BUILD_EXAMPLES)
-    #add_subdirectory(examples)
+    add_subdirectory(examples)
 endif()
 
 # ─── Install / package config ──────────────────────────────────────────
