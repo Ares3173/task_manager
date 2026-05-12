@@ -111,7 +111,7 @@ auto resume_process( void* handle ) -> std::expected<void, errc> {
 	return {};
 }
 
-auto close_handle( void* handle ) -> std::expected<void, errc> {
+auto close( void* handle ) -> std::expected<void, errc> {
 	const NTSTATUS status = NtClose( static_cast<HANDLE>( handle ) );
 	if ( !NT_SUCCESS( status ) )
 		return std::unexpected{ nt_to_errc( status ) };

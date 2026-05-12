@@ -1,0 +1,69 @@
+# task_manager tests
+
+## Current state
+
+The test harness is wired up via **Catch2 v3** (pulled by `FetchContent`) and
+registered with CTest via `catch_discover_tests`. Two unit-test files are
+seeded:
+
+- `unit/test_error.cpp` — `errc` ⇄ `std::error_code` plumbing
+- `unit/test_types.cpp` — strong-typed ids and `access_rights` flag ops
+
+These exercise everything that has a real implementation today
+([src/error.cpp](../src/error.cpp) and the header-only types in
+[include/task_manager/types.hpp](../include/task_manager/types.hpp)).
+
+## Running
+
+```pwsh
+cmake -B build -S . -G "Visual Studio 17 2022"
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+To scope runs by Catch2 tag, invoke the binary directly with the tag
+filter (CTest's `-L` label support is not wired up to Catch2 tags
+automatically):
+
+```pwsh
+./build/tests/Debug/task_manager_tests.exe "[unit]"
+./build/tests/Debug/task_manager_tests.exe "[integration]"
+```
+
+Or run a subset by name regex via CTest:
+
+```pwsh
+ctest --test-dir build -C Debug -R "errc|access_rights"
+```
+
+## Deferred until the process implementation lands
+
+The other `src/*.cpp` files are still empty stubs, so the following
+tiers from the original plan are intentionally not yet present — they
+would fail to link:
+
+- `unit/test_suspension.cpp` — needs a real `process` to construct a
+  `process::suspension` via the friend ctor.
+- `integration/test_process_query.cpp` — needs `process::current()`,
+  `pid()`, `name()`, `image_path()`, `parent_pid()`, `architecture()`.
+- `integration/test_process_open.cpp` — needs `process::open(pid_t, …)`
+  and `process::open(std::string_view, …)`.
+- `integration/test_lifecycle.cpp` — needs `suspend` / `resume` /
+  `terminate` / `suspend_scoped`, plus a spawned helper target.
+- `support/spawn.{hpp,cpp}` and `support/helper_exe.cpp` — RAII wrapper
+  around `CreateProcess` for the helper, only needed by the lifecycle
+  tier above.
+
+Add each tier as the corresponding `src/` file is filled in. The
+two-tier `unit/` + `integration/` split is the intended layout; new
+`.cpp` files just need to be appended to the `add_executable` list in
+[CMakeLists.txt](CMakeLists.txt) and tagged appropriately
+(`[unit]` / `[integration]` / `[lifecycle]`).
+
+## Examples
+
+The `examples/` subdirectory is also deferred for the same reason:
+every example in the original plan (`list_current_process`,
+`open_by_name`, `scoped_suspend`) calls into the `process` API. It
+remains commented out in the root [CMakeLists.txt](../CMakeLists.txt)
+and will be re-enabled alongside the integration tier.

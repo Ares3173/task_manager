@@ -1,0 +1,47 @@
+#include "task_manager/error.hpp"
+
+#include <catch2/catch_test_macros.hpp>
+
+#include <system_error>
+
+using task_manager::errc;
+using task_manager::make_error_code;
+using task_manager::task_manager_category;
+using task_manager::to_string;
+
+TEST_CASE("to_string covers every named errc value", "[unit][error]") {
+    CHECK(to_string(errc::ok)                  == "ok");
+    CHECK(to_string(errc::access_denied)       == "access_denied");
+    CHECK(to_string(errc::invalid_pid)         == "invalid_pid");
+    CHECK(to_string(errc::process_exited)      == "process_exited");
+    CHECK(to_string(errc::invalid_handle)      == "invalid_handle");
+    CHECK(to_string(errc::insufficient_buffer) == "insufficient_buffer");
+    CHECK(to_string(errc::not_supported)       == "not_supported");
+    CHECK(to_string(errc::bad_address)         == "bad_address");
+    CHECK(to_string(errc::not_engaged)         == "not_engaged");
+    CHECK(to_string(errc::unknown)             == "unknown");
+}
+
+TEST_CASE("task_manager_category is a stable singleton", "[unit][error]") {
+    auto const& a = task_manager_category();
+    auto const& b = task_manager_category();
+    CHECK(&a == &b);
+    CHECK(std::string_view{a.name()} == "task_manager");
+}
+
+TEST_CASE("make_error_code roundtrips through std::error_code", "[unit][error]") {
+    auto ec = make_error_code(errc::invalid_pid);
+
+    CHECK(ec.category() == task_manager_category());
+    CHECK(ec.value() == static_cast<int>(errc::invalid_pid));
+    CHECK(ec.message() == "invalid_pid");
+}
+
+TEST_CASE("errc is registered as a std::error_code enum", "[unit][error]") {
+    STATIC_REQUIRE(std::is_error_code_enum<errc>::value);
+
+    // Implicit construction via the enum (only works because of the trait above).
+    std::error_code ec = errc::access_denied;
+    CHECK(ec.category() == task_manager_category());
+    CHECK(ec.message() == "access_denied");
+}

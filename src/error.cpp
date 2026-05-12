@@ -21,6 +21,8 @@ std::string_view to_string( errc e ) noexcept {
 		return "not_supported";
 	case errc::bad_address:
 		return "bad_address";
+	case errc::not_engaged:
+		return "not_engaged";
 	case errc::unknown:
 		return "unknown";
 	}

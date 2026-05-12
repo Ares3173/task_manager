@@ -24,7 +24,7 @@ auto terminate_process( void* handle, unsigned exit_code ) -> std::expected<void
 auto suspend_process( void* handle ) -> std::expected<void, errc>;
 auto resume_process( void* handle ) -> std::expected<void, errc>;
 
-auto close_handle( void* handle ) -> std::expected<void, errc>;
+auto close( void* handle ) -> std::expected<void, errc>;
 
 // ─── Query ─────────────────────────────────────────────────────────────
 struct process_basic_info {
