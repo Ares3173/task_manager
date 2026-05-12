@@ -66,8 +66,14 @@ auto process::current() noexcept -> std::expected<process, errc> {
 
 // ─── Info ──────────────────────────────────────────────────────────────
 
-bool process::is_open() const noexcept {
-	return static_cast<bool>( handle_ );
+bool process::is_alive() const noexcept {
+	auto query_handle = detail::nt::open_process( pid_, access_rights::query_limited_info );
+	if ( !query_handle )
+		return false; // can't open — probably exited (could be access_denied without
+		              // SeDebugPrivilege, but no better signal available here)
+
+	auto info = detail::nt::query_process_basic_info( query_handle->get() );
+	return info && info->exit_status == exit_code::still_active;
 }
 
 arch_t process::architecture() const noexcept {
@@ -133,6 +139,58 @@ auto process::suspend_scoped() -> std::expected<suspension, errc> {
 	if ( !s )
 		return std::unexpected{ s.error() };
 	return suspension{ this };
+}
+
+auto process::add_job_object() -> std::expected<void, errc> {
+	if ( !handle_ )
+		return std::unexpected{ errc::invalid_handle };
+	if ( job_ )
+		return {}; // already added to a job object
+	auto job = detail::nt::create_job_object();
+	if ( !job )
+		return std::unexpected{ job.error() };
+	job_ = std::move( job.value() );
+	return detail::nt::add_process_to_job_object( job_.get(), handle_.get() );
+}
+
+auto process::freeze() -> std::expected<void, errc> {
+	if ( !handle_ )
+		return std::unexpected{ errc::invalid_handle };
+	if ( !job_ ) {
+		auto add_result = add_job_object();
+		if ( !add_result )
+			return std::unexpected{ add_result.error() };
+	}
+	return detail::nt::set_job_object_freeze_info( job_.get(), true );
+}
+
+auto process::thaw() -> std::expected<void, errc> {
+	if ( !handle_ )
+		return std::unexpected{ errc::invalid_handle };
+	if ( !job_ ) {
+		auto add_result = add_job_object();
+		if ( !add_result )
+			return std::unexpected{ add_result.error() };
+	}
+	return detail::nt::set_job_object_freeze_info( job_.get(), false );
+}
+
+auto process::thaw_internal() noexcept -> std::expected<void, errc> {
+	if ( !handle_ )
+		return std::unexpected{ errc::invalid_handle };
+	if ( !job_ ) {
+		auto add_result = add_job_object();
+		if ( !add_result )
+			return std::unexpected{ add_result.error() };
+	}
+	return detail::nt::set_job_object_freeze_info( job_.get(), false );
+}
+
+auto process::freeze_scoped() -> std::expected<frozen, errc> {
+	auto f = freeze();
+	if ( !f )
+		return std::unexpected{ f.error() };
+	return frozen{ this };
 }
 
 auto process::terminate( pid_t pid, unsigned exit_code ) -> std::expected<void, errc> {

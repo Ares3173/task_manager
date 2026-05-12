@@ -1,0 +1,66 @@
+// Demonstrates RAII process suspension. Opens the pid given on the
+// command line, holds it suspended for N seconds, then lets the
+// suspension RAII guard resume it on scope exit.
+//
+//   scoped_suspend <pid> [seconds=3]
+
+#include "task_manager/process/process.hpp"
+#include "task_manager/types.hpp"
+
+#include <charconv>
+#include <chrono>
+#include <cstdio>
+#include <print>
+#include <string_view>
+#include <thread>
+
+using task_manager::access_rights;
+using task_manager::pid_t;
+using task_manager::process;
+using task_manager::to_string;
+
+namespace {
+
+bool parse_uint( std::string_view sv, unsigned& out ) {
+	auto [ ptr, ec ] = std::from_chars( sv.data(), sv.data() + sv.size(), out );
+	return ec == std::errc{} && ptr == sv.data() + sv.size();
+}
+
+} // namespace
+
+int main( int argc, char** argv ) {
+	if ( argc < 2 ) {
+		std::println( stderr, "usage: {} <pid> [seconds=3]", argv[ 0 ] );
+		return 2;
+	}
+
+	unsigned raw_pid = 0;
+	if ( !parse_uint( argv[ 1 ], raw_pid ) ) {
+		std::println( stderr, "invalid pid: {}", argv[ 1 ] );
+		return 2;
+	}
+
+	unsigned seconds = 3;
+	if ( argc >= 3 && !parse_uint( argv[ 2 ], seconds ) ) {
+		std::println( stderr, "invalid seconds: {}", argv[ 2 ] );
+		return 2;
+	}
+
+	auto p = process::open( pid_t{ raw_pid }, access_rights::terminate | access_rights::set_quota );
+	if ( !p ) {
+		std::println( stderr, "open({}) -> {}", raw_pid, to_string( p.error() ) );
+		return 1;
+	}
+
+	auto guard = p->freeze_scoped();
+	if ( !guard ) {
+		std::println( stderr, "freeze_scoped -> {}", to_string( guard.error() ) );
+		return 1;
+	}
+
+	std::println( "frozen pid {} for {} second(s)...", raw_pid, seconds );
+	std::this_thread::sleep_for( std::chrono::seconds( seconds ) );
+	std::println( "thawing on scope exit" );
+	// `guard` is dropped here; its destructor calls thaw_internal().
+	return 0;
+}

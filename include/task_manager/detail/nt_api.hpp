@@ -1,5 +1,6 @@
 // /include/task_manager/detail/nt_api.hpp
 #pragma once
+#include "task_manager/detail/nt_types.hpp"
 #include "task_manager/detail/unique_handle.hpp"
 #include "task_manager/error.hpp"
 #include "task_manager/types.hpp"
@@ -26,15 +27,33 @@ auto resume_process( void* handle ) -> std::expected<void, errc>;
 
 auto close( void* handle ) -> std::expected<void, errc>;
 
+// Job Object
+
+auto create_job_object() -> std::expected<unique_handle, errc>;
+auto add_process_to_job_object( void* job, void* process ) -> std::expected<void, errc>;
+auto set_job_object_information(
+    void* job, JOBOBJECTINFOCLASS info_class, void* info, unsigned long info_len )
+    -> std::expected<void, errc>;
+
+auto set_job_object_freeze_info( void* job, bool freeze ) -> std::expected<void, errc>;
+
 // ─── Query ─────────────────────────────────────────────────────────────
 struct process_basic_info {
 	pid_t pid;
 	pid_t parent_pid;
 	address_t peb_base;
-	std::int32_t exit_status;
+	std::uint32_t exit_status;
+};
+
+struct object_basic_info {
+	access_rights access;
+	std::uint32_t attributes;
+	std::uint32_t handle_count;
+	std::uint32_t pointer_count;
 };
 
 auto query_process_basic_info( void* handle ) -> std::expected<process_basic_info, errc>;
+auto query_handle_basic_info( void* handle ) -> std::expected<object_basic_info, errc>;
 
 // Returns a DOS-style path (e.g. C:\Windows\System32\notepad.exe) via
 // ProcessImageFileNameWin32. Internally handles the
@@ -43,6 +62,8 @@ auto query_process_image_path_win32( void* handle ) -> std::expected<std::filesy
 
 // True if the process is running under WOW64 (32-bit on a 64-bit OS).
 auto query_process_is_wow64( void* handle ) -> std::expected<bool, errc>;
+
+auto query_handle_access_rights( void* handle ) -> std::expected<access_rights, errc>;
 
 // Pid of the calling process. Cheap; never fails.
 auto current_process_id() noexcept -> pid_t;

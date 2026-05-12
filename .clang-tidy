@@ -12,7 +12,10 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -readability-magic-numbers,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
-  -cppcoreguidelines-pro-type-reinterpret-cast
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -readability-braces-around-statements,
+  -performance-enum-size,
+  -readability-identifier-naming
 
 WarningsAsErrors: ''
 HeaderFilterRegex: '.*/task_manager/.*\.hpp$'

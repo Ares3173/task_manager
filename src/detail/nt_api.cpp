@@ -13,7 +13,6 @@
 
 // ─── ntdll exports not in <winternl.h> ─────────────────────────────────
 extern "C" {
-NTSTATUS NTAPI NtClose( HANDLE Handle );
 
 NTSTATUS NTAPI NtOpenProcess(
     PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes,
@@ -22,6 +21,13 @@ NTSTATUS NTAPI NtOpenProcess(
 NTSTATUS NTAPI NtTerminateProcess( HANDLE ProcessHandle, NTSTATUS ExitStatus );
 NTSTATUS NTAPI NtSuspendProcess( HANDLE ProcessHandle );
 NTSTATUS NTAPI NtResumeProcess( HANDLE ProcessHandle );
+
+NTSTATUS NTAPI NtCreateJobObject(
+    PHANDLE JobHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes );
+NTSTATUS NTAPI NtSetInformationJobObject(
+    HANDLE JobHandle, JOBOBJECTINFOCLASS JobObjectInformationClass, PVOID JobObjectInformation,
+    ULONG JobObjectInformationLength );
+NTSTATUS NTAPI NtAssignProcessToJobObject( HANDLE JobHandle, HANDLE ProcessHandle );
 }
 
 namespace task_manager::detail::nt {
@@ -65,7 +71,7 @@ pid_t handle_to_pid( HANDLE h ) noexcept {
 }
 
 // PROCESSINFOCLASS values not in <winternl.h>'s reduced enum.
-constexpr auto kProcessImageFileNameWin32 = static_cast<PROCESSINFOCLASS>( 43 );
+const auto kProcessImageFileNameWin32 = static_cast<::PROCESSINFOCLASS>( 43 );
 
 } // namespace
 
@@ -118,7 +124,70 @@ auto close( void* handle ) -> std::expected<void, errc> {
 	return {};
 }
 
+// Job Object
+
+auto create_job_object() -> std::expected<unique_handle, errc> {
+	OBJECT_ATTRIBUTES oa{};
+	InitializeObjectAttributes( &oa, nullptr, 0, nullptr, nullptr );
+
+	HANDLE h              = nullptr;
+	const NTSTATUS status = NtCreateJobObject( &h, JOB_OBJECT_ALL_ACCESS, &oa );
+	if ( !NT_SUCCESS( status ) )
+		return std::unexpected{ nt_to_errc( status ) };
+	return unique_handle{ h };
+}
+
+auto add_process_to_job_object( void* job, void* process ) -> std::expected<void, errc> {
+	const NTSTATUS status = NtAssignProcessToJobObject( job, process );
+	if ( !NT_SUCCESS( status ) )
+		return std::unexpected{ nt_to_errc( status ) };
+
+	return {};
+}
+
+auto set_job_object_information(
+    void* job, JOBOBJECTINFOCLASS info_class, void* info, unsigned long info_len )
+    -> std::expected<void, errc> {
+	const NTSTATUS status = NtSetInformationJobObject(
+	    job, static_cast<::JOBOBJECTINFOCLASS>( info_class ), info, info_len );
+	if ( !NT_SUCCESS( status ) )
+		return std::unexpected{ nt_to_errc( status ) };
+	return {};
+}
+
+auto set_job_object_freeze_info( void* job, bool freeze ) -> std::expected<void, errc> {
+	JOBOBJECT_FREEZE_INFORMATION limits{};
+	limits.FreezeOperation = TRUE;
+	limits.Freeze          = freeze;
+	return set_job_object_information(
+	    job, JOBOBJECTINFOCLASS::JobObjectFreezeInformation, &limits, sizeof( limits ) );
+}
+
 // ─── Query ─────────────────────────────────────────────────────────────
+
+auto query_handle_basic_info( void* handle ) -> std::expected<object_basic_info, errc> {
+	PUBLIC_OBJECT_BASIC_INFORMATION hbi{};
+	ULONG ret_len         = 0;
+	const NTSTATUS status = NtQueryObject(
+	    static_cast<HANDLE>( handle ), ObjectBasicInformation, &hbi, sizeof( hbi ), &ret_len );
+
+	if ( !NT_SUCCESS( status ) )
+		return std::unexpected{ nt_to_errc( status ) };
+
+	object_basic_info out{};
+	out.attributes    = hbi.Attributes;
+	out.access        = static_cast<access_rights>( hbi.GrantedAccess );
+	out.handle_count  = hbi.HandleCount;
+	out.pointer_count = hbi.PointerCount;
+	return out;
+}
+
+auto query_handle_access_rights( void* handle ) -> std::expected<access_rights, errc> {
+	auto info_result = query_handle_basic_info( handle );
+	if ( !info_result )
+		return std::unexpected{ info_result.error() };
+	return info_result->access;
+}
 
 auto query_process_basic_info( void* handle ) -> std::expected<process_basic_info, errc> {
 	PROCESS_BASIC_INFORMATION pbi{};
