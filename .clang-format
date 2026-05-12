@@ -1,0 +1,32 @@
+---
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: Auto
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: ForIndentation
+ColumnLimit: 100
+
+PointerAlignment: Left          # int* p, not int *p
+ReferenceAlignment: Left        # int& r
+
+BreakBeforeBraces: Attach       # opening brace on same line
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+
+AlignAfterOpenBracket: AlwaysBreak
+AlignConsecutiveAssignments: true
+
+NamespaceIndentation: None      # don't indent inside namespaces
+FixNamespaceComments: true      # auto-add // namespace foo at closing brace
+
+IncludeBlocks: Regroup          # auto-sort #includes into groups
+SortIncludes: CaseSensitive
+
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: true
+SpacesInSquareBrackets: true
+SpacesInContainerLiterals: true
+SpacesInCStyleCastParentheses: true

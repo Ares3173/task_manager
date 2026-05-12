@@ -1,0 +1,63 @@
+{
+    "psi-header.config": {
+        "forceToTop": true,
+        "blankLinesAfter": 1,
+        "overridePathSeparator": "/"
+    },
+    "psi-header.changes-tracking": {
+        "isActive": true,
+        "autoHeader": "autoSave",
+        "exclude": [
+            "markdown",
+            "json",
+            "jsonc",
+            "shellscript",
+            "plaintext"
+        ]
+    },
+    "psi-header.lang-config": [
+        {
+            "language": "cpp",
+            "begin": "",
+            "end": "",
+            "prefix": "// ",
+            "forceToTop": true,
+            "blankLinesAfter": 1,
+            "rootDirFileName": "CMakeLists.txt"
+        },
+        {
+            "language": "c",
+            "mapTo": "cpp"
+        }
+    ],
+    "psi-header.templates": [
+        {
+            "language": "cpp",
+            "template": [
+                "<<filerelativepath>>"
+            ]
+        }
+    ],
+    "editor.formatOnSave": true,
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+    "[cpp]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+        "editor.formatOnSave": true
+    },
+    "[c]": {
+        "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+        "editor.formatOnSave": true
+    },
+    "files.associations": {
+        ".clang-tidy": "yaml",
+        ".clang-format": "yaml",
+        "_clang-format": "yaml"
+    },
+    "clangd.arguments": [
+        "--clang-tidy",
+        "--background-index",
+        "--header-insertion=never",
+        "--compile-commands-dir=${workspaceFolder}/build/msvc-debug"
+    ]
+}
