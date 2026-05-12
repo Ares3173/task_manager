@@ -1,5 +1,6 @@
 // /include/task_manager/process/process.hpp
 #pragma once
+#include "task_manager/detail/unique_handle.hpp"
 #include "task_manager/error.hpp"
 #include "task_manager/types.hpp"
 
@@ -55,7 +56,7 @@ class process {
 
 	detail::unique_handle handle_;
 	std::filesystem::path path_;
-	pid_t pid_ = 0;
+	pid_t pid_{};
 };
 
 class [[nodiscard]] process::suspension {
@@ -68,7 +69,7 @@ class [[nodiscard]] process::suspension {
 	suspension& operator=( suspension&& other ) noexcept {
 		if ( this != &other ) {
 			if ( owner_ )
-				owner_->resume_internal(); // best-effort
+				( void )owner_->resume_internal(); // best-effort
 			owner_ = std::exchange( other.owner_, nullptr );
 		}
 		return *this;
@@ -76,7 +77,7 @@ class [[nodiscard]] process::suspension {
 
 	~suspension() {
 		if ( owner_ )
-			owner_->resume_internal(); // best-effort, errors swallowed
+			( void )owner_->resume_internal(); // best-effort, errors swallowed
 	}
 
 	auto resume() -> std::expected<void, errc> {

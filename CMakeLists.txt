@@ -46,7 +46,8 @@ target_sources(task_manager PRIVATE
     src/thread/context.cpp
     src/system/privileges.cpp
     src/system/token.cpp
-    src/detail/nt_api.cpp)
+    src/detail/nt_api.cpp
+    src/detail/unique_handle.cpp)
 
 target_include_directories(task_manager
     PUBLIC

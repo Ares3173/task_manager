@@ -15,6 +15,7 @@ enum class errc : std::uint8_t {
 	insufficient_buffer, // common NT API pattern: retry with larger buffer
 	not_supported,       // protected process, OS version mismatch
 	bad_address,         // memory read/write hit an unmapped page
+	not_engaged,
 	unknown,
 };
 
