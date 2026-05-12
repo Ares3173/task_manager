@@ -1,9 +1,6 @@
 // /src/error.cpp
 #include "task_manager/error.hpp"
 
-#include <windows.h>
-#include <winnt.h>
-
 namespace task_manager {
 
 std::string_view to_string( errc e ) noexcept {
