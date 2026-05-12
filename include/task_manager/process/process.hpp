@@ -11,45 +11,8 @@
 namespace task_manager {
 class process {
   public:
-	class [[nodiscard]] suspension {
-	  public:
-		suspension( const suspension& )            = delete;
-		suspension& operator=( const suspension& ) = delete;
+	class suspension; // Defined below
 
-		suspension( suspension&& other ) noexcept
-		    : owner_( std::exchange( other.owner_, nullptr ) ) {}
-
-		suspension& operator=( suspension&& other ) noexcept {
-			if ( this != &other ) {
-				if ( owner_ )
-					owner_->resume_internal(); // best-effort
-				owner_ = std::exchange( other.owner_, nullptr );
-			}
-			return *this;
-		}
-
-		~suspension() {
-			if ( owner_ )
-				owner_->resume_internal(); // best-effort, errors swallowed
-		}
-
-		auto resume() -> std::expected<void, errc> {
-			if ( !owner_ )
-				return std::unexpected{ errc::not_engaged };
-			auto* p = std::exchange( owner_, nullptr );
-			return p->resume_internal();
-		}
-
-		void release() noexcept { owner_ = nullptr; }
-
-		bool engaged() const noexcept { return owner_ != nullptr; }
-		explicit operator bool() const noexcept { return engaged(); }
-
-	  private:
-		friend class process;
-		explicit suspension( process* p ) noexcept : owner_( p ) {}
-		process* owner_ = nullptr; // non-owning back-pointer
-	};
 	// Construct
 	static auto open( pid_t pid, access_rights rights ) -> std::expected<process, errc>;
 	static auto open( std::string_view name, access_rights rights ) -> std::expected<process, errc>;
@@ -93,6 +56,45 @@ class process {
 	detail::unique_handle handle_;
 	std::filesystem::path path_;
 	pid_t pid_ = 0;
+};
+
+class [[nodiscard]] process::suspension {
+  public:
+	suspension( const suspension& )            = delete;
+	suspension& operator=( const suspension& ) = delete;
+
+	suspension( suspension&& other ) noexcept : owner_( std::exchange( other.owner_, nullptr ) ) {}
+
+	suspension& operator=( suspension&& other ) noexcept {
+		if ( this != &other ) {
+			if ( owner_ )
+				owner_->resume_internal(); // best-effort
+			owner_ = std::exchange( other.owner_, nullptr );
+		}
+		return *this;
+	}
+
+	~suspension() {
+		if ( owner_ )
+			owner_->resume_internal(); // best-effort, errors swallowed
+	}
+
+	auto resume() -> std::expected<void, errc> {
+		if ( !owner_ )
+			return std::unexpected{ errc::not_engaged };
+		auto* p = std::exchange( owner_, nullptr );
+		return p->resume_internal();
+	}
+
+	void release() noexcept { owner_ = nullptr; }
+
+	bool engaged() const noexcept { return owner_ != nullptr; }
+	explicit operator bool() const noexcept { return engaged(); }
+
+  private:
+	friend class process;
+	explicit suspension( process* p ) noexcept : owner_( p ) {}
+	process* owner_ = nullptr; // non-owning back-pointer
 };
 
 } // namespace task_manager
