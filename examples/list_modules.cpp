@@ -1,0 +1,64 @@
+// Enumerates the modules (DLLs/EXE) loaded in a process by walking its
+// PEB->Ldr->InLoadOrderModuleList. Defaults to the current process; pass a
+// pid as the first argument to inspect another process (requires vm_read +
+// query_limited_information rights on that target).
+//
+//   list_modules            # current process
+//   list_modules <pid>      # another process
+
+#include "task_manager/process/modules.hpp"
+#include "task_manager/process/process.hpp"
+#include "task_manager/types.hpp"
+
+#include <charconv>
+#include <cstdio>
+#include <print>
+#include <string_view>
+#include <utility>
+
+using task_manager::access_rights;
+using task_manager::pid_t;
+using task_manager::process;
+using task_manager::to_string;
+
+namespace {
+
+bool parse_uint( std::string_view sv, unsigned& out ) {
+	auto [ ptr, ec ] = std::from_chars( sv.data(), sv.data() + sv.size(), out );
+	return ec == std::errc{} && ptr == sv.data() + sv.size();
+}
+
+} // namespace
+
+int main( int argc, char** argv ) {
+	auto p = [ & ] {
+		if ( argc < 2 )
+			return process::current();
+		unsigned raw_pid = 0;
+		if ( !parse_uint( argv[ 1 ], raw_pid ) ) {
+			std::println( stderr, "invalid pid: {}", argv[ 1 ] );
+			return std::expected<process, task_manager::errc>{
+			    std::unexpected{ task_manager::errc::invalid_pid } };
+		}
+		return process::open(
+		    pid_t{ raw_pid }, access_rights::vm_read | access_rights::query_limited_info );
+	}();
+
+	if ( !p ) {
+		std::println( stderr, "open -> {}", to_string( p.error() ) );
+		return 1;
+	}
+
+	auto mods = p->modules();
+	if ( !mods ) {
+		std::println( stderr, "modules() -> {}", to_string( mods.error() ) );
+		return 1;
+	}
+
+	std::println( "{:>18}  {:>10}  {}", "base", "size", "name" );
+	for ( const auto& m : *mods ) {
+		std::println( "0x{:016x}  {:>10}  {}", std::to_underlying( m.base() ), m.size(), m.name() );
+	}
+	std::println( "{} module(s)", mods->size() );
+	return 0;
+}

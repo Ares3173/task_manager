@@ -6,7 +6,6 @@
 namespace task_manager::detail {
 
 void unique_handle::close( native_handle h ) noexcept {
-	// Best-effort close from a destructor; errors are swallowed.
 	( void )nt::close( h );
 }
 

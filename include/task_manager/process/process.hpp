@@ -2,12 +2,14 @@
 #pragma once
 #include "task_manager/detail/unique_handle.hpp"
 #include "task_manager/error.hpp"
+#include "task_manager/process/modules.hpp"
 #include "task_manager/types.hpp"
 
 #include <cstdint>
 #include <expected>
 #include <filesystem>
 #include <string_view>
+
 
 namespace task_manager {
 class process {
@@ -37,9 +39,12 @@ class process {
 	auto image_path() const -> std::expected<std::filesystem::path, errc>;
 	auto parent_pid() const -> std::expected<pid_t, errc>;
 
-	// Children
 	// auto threads() const -> std::expected<std::vector<thread>, errc>;
 	// auto modules() const -> std::expected<std::vector<loaded_module>, errc>;
+
+	// Modules
+	auto modules() const& -> std::expected<std::vector<loaded_module>, errc>;
+	auto modules() const&& -> std::expected<std::vector<loaded_module>, errc> = delete;
 	// auto memory_regions() const -> std::expected<std::vector<memory_region>, errc>;
 
 	// Lifecycle
@@ -60,6 +65,7 @@ class process {
 	    -> std::expected<void, errc>;
 
   private:
+	friend class loaded_module;
 	process( detail::unique_handle handle, pid_t pid ) noexcept;
 
 	auto resume_internal() noexcept -> std::expected<void, errc>;

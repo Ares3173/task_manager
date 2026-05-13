@@ -19,6 +19,7 @@ endif()
 # ─── Options ────────────────────────────────────────────────────────────
 option(TASK_MANAGER_BUILD_TESTS    "Build tests"    ON)
 option(TASK_MANAGER_BUILD_EXAMPLES "Build examples" ON)
+option(TASK_MANAGER_WITH_PE_PARSER "Enable PE introspection on loaded_module (sections/exports/imports/headers)" OFF)
 
 # Only build tests/examples when this is the top-level project,
 # not when consumed via FetchContent
@@ -59,6 +60,18 @@ target_compile_features(task_manager PUBLIC cxx_std_23)
 target_link_libraries(task_manager
     PRIVATE
         ntdll)  # for NT API functions
+
+# ─── Optional: pe_parser integration ────────────────────────────────────
+# When ON, pe_parser is linked PUBLIC and the macro is defined PUBLIC so that
+# consumers see the same loaded_module class layout the library was built
+# with (PE methods appear under #ifdef in modules.hpp — ODR hazard otherwise).
+if(TASK_MANAGER_WITH_PE_PARSER)
+    # TODO: replace with the chosen dep source, e.g.
+    #   find_package(pe_parser CONFIG REQUIRED)
+    # or a FetchContent_Declare/MakeAvailable block.
+    target_link_libraries(task_manager PUBLIC pe_parser::pe_parser)
+    target_compile_definitions(task_manager PUBLIC TASK_MANAGER_WITH_PE_PARSER)
+endif()
 
 # ─── Compiler warnings ──────────────────────────────────────────────────
 if(MSVC)

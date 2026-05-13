@@ -4,9 +4,6 @@
 
 namespace task_manager::detail {
 
-// Move-only RAII wrapper around an NT HANDLE.
-// Sentinel is nullptr (NT semantics). Destructor calls NtClose; defined
-// out-of-line in unique_handle.cpp so this header stays free of <windows.h>.
 class unique_handle {
   public:
 	using native_handle = void*;

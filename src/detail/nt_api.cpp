@@ -11,7 +11,6 @@
 #include <vector>
 #include <winternl.h>
 
-// ─── ntdll exports not in <winternl.h> ─────────────────────────────────
 extern "C" {
 
 NTSTATUS NTAPI NtOpenProcess(
@@ -28,12 +27,15 @@ NTSTATUS NTAPI NtSetInformationJobObject(
     HANDLE JobHandle, JOBOBJECTINFOCLASS JobObjectInformationClass, PVOID JobObjectInformation,
     ULONG JobObjectInformationLength );
 NTSTATUS NTAPI NtAssignProcessToJobObject( HANDLE JobHandle, HANDLE ProcessHandle );
+
+NTSTATUS NTAPI NtReadVirtualMemory(
+    HANDLE ProcessHandle, PVOID BaseAddress, PVOID Buffer, SIZE_T NumberOfBytesToRead,
+    PSIZE_T NumberOfBytesRead );
 }
 
 namespace task_manager::detail::nt {
 namespace {
 
-// ─── NTSTATUS → errc ───────────────────────────────────────────────────
 errc nt_to_errc( NTSTATUS s ) noexcept {
 	switch ( s ) {
 	case STATUS_SUCCESS:
@@ -74,8 +76,6 @@ pid_t handle_to_pid( HANDLE h ) noexcept {
 const auto kProcessImageFileNameWin32 = static_cast<::PROCESSINFOCLASS>( 43 );
 
 } // namespace
-
-// ─── Lifecycle ─────────────────────────────────────────────────────────
 
 auto open_process( pid_t pid, access_rights rights ) -> std::expected<unique_handle, errc> {
 	OBJECT_ATTRIBUTES oa{};
@@ -163,7 +163,20 @@ auto set_job_object_freeze_info( void* job, bool freeze ) -> std::expected<void,
 	    job, JOBOBJECTINFOCLASS::JobObjectFreezeInformation, &limits, sizeof( limits ) );
 }
 
-// ─── Query ─────────────────────────────────────────────────────────────
+auto read_virtual_memory( void* handle, address_t addr, std::span<std::byte> dst )
+    -> std::expected<std::size_t, errc> {
+	SIZE_T bytes_read     = 0;
+	const NTSTATUS status = NtReadVirtualMemory(
+	    static_cast<HANDLE>( handle ), reinterpret_cast<PVOID>( std::to_underlying( addr ) ),
+	    dst.data(), dst.size(), &bytes_read );
+
+	// STATUS_PARTIAL_COPY (0x8000000D) is reported as a successful short read.
+	if ( status == STATUS_PARTIAL_COPY )
+		return static_cast<std::size_t>( bytes_read );
+	if ( !NT_SUCCESS( status ) )
+		return std::unexpected{ nt_to_errc( status ) };
+	return static_cast<std::size_t>( bytes_read );
+}
 
 auto query_handle_basic_info( void* handle ) -> std::expected<object_basic_info, errc> {
 	PUBLIC_OBJECT_BASIC_INFORMATION hbi{};
@@ -248,8 +261,6 @@ auto query_process_is_wow64( void* handle ) -> std::expected<bool, errc> {
 auto current_process_id() noexcept -> pid_t {
 	return static_cast<pid_t>( ::GetCurrentProcessId() );
 }
-
-// ─── Enumeration ───────────────────────────────────────────────────────
 
 auto query_system_processes() -> std::expected<std::vector<system_process_entry>, errc> {
 	// Snapshot can be megabytes on a busy system. Start at 256 KiB and
